@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jigsaw Puzzle</title>
+<style>
+:root {
+  --bg: #1b3055;
+  --bg2: #162844;
+  --bg3: #0f1e33;
+  --surface: rgba(255,255,255,0.07);
+  --surface2: rgba(255,255,255,0.13);
+  --border: rgba(255,255,255,0.13);
+  --border2: rgba(255,255,255,0.26);
+  --gold: #e8c46a;
+  --gold2: #f5d98a;
+  --text: #f0eee8;
+  --muted: rgba(240,238,232,0.55);
+  --snap: #5ecfa0;
+  --font: 'Trebuchet MS', Trebuchet, sans-serif;
+  --r: 14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100vh;background:var(--bg);font-family:var(--font);color:var(--text);}
+body{padding:2rem 1.5rem;}
+.screen{display:none;max-width:560px;margin:0 auto;}
+.screen.active{display:block;}
+
+/* HEADER */
+.hdr{margin-bottom:2rem;}
+.hdr h1{font-size:38px;font-weight:700;letter-spacing:-0.5px;line-height:1.1;}
+.hdr h1 span{color:var(--gold);}
+.hdr p{font-size:13px;color:var(--muted);margin-top:6px;letter-spacing:0.02em;}
+.gold-line{height:1px;background:linear-gradient(to right,var(--gold),transparent);margin:1.5rem 0;opacity:0.4;}
+
+/* FORM */
+.form-grid{display:grid;gap:1.1rem;}
+.flabel{font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--gold);display:block;margin-bottom:5px;}
+.finput{
+  width:100%;background:var(--surface);border:1px solid var(--border);border-radius:9px;
+  padding:10px 14px;font-size:14px;font-family:var(--font);color:var(--text);
+  transition:border-color 0.2s,box-shadow 0.2s;outline:none;
+}
+.finput::placeholder{color:var(--muted);}
+.finput:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(232,196,106,0.12);}
+textarea.finput{min-height:72px;resize:vertical;}
+.sel-wrap{position:relative;}
+.sel-wrap::after{content:'▾';position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--gold);font-size:12px;pointer-events:none;}
+select.finput{appearance:none;cursor:pointer;}
+
+/* UPLOAD */
+.upload-zone{
+  border:1.5px dashed var(--border2);border-radius:11px;padding:22px;text-align:center;cursor:pointer;
+  transition:all 0.2s;background:var(--surface);
+}
+.upload-zone:hover,.upload-zone.drag-over{border-color:var(--gold);background:rgba(232,196,106,0.06);}
+.uz-icon{font-size:28px;margin-bottom:6px;}
+.uz-text{font-size:13px;color:var(--muted);}
+.uz-text b{color:var(--gold);font-weight:600;}
+#img-preview{max-height:90px;border-radius:8px;margin-top:10px;display:none;box-shadow:0 4px 20px rgba(0,0,0,0.4);}
+
+/* BUTTONS */
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:1.5rem;}
+.btn{padding:10px 22px;border-radius:9px;font-size:13px;font-family:var(--font);font-weight:700;cursor:pointer;transition:all 0.18s;letter-spacing:0.04em;border:none;}
+.btn-primary{background:var(--gold);color:var(--bg3);}
+.btn-primary:hover{background:var(--gold2);transform:translateY(-1px);box-shadow:0 6px 20px rgba(232,196,106,0.28);}
+.btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border2);}
+.btn-ghost:hover{background:rgba(255,255,255,0.18);transform:translateY(-1px);}
+.btn-ghost:active,.btn-primary:active{transform:translateY(0);}
+
+/* LINK CARD */
+.link-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.2rem;margin-top:1rem;}
+.lc-label{font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:8px;}
+.link-mono{background:var(--bg3);border-radius:8px;padding:10px 14px;font-size:12px;word-break:break-all;color:var(--muted);font-family:monospace;line-height:1.5;}
+.link-note{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;}
+
+/* SOLVE */
+.solve-hdr{display:flex;align-items:center;gap:12px;margin-bottom:1rem;}
+.back-btn{padding:6px 14px;border-radius:8px;font-size:13px;font-family:var(--font);font-weight:700;cursor:pointer;background:var(--surface2);color:var(--text);border:1px solid var(--border2);transition:all 0.18s;}
+.back-btn:hover{background:rgba(255,255,255,0.18);}
+.solve-title{font-size:20px;font-weight:700;color:var(--text);flex:1;}
+.prog-row{display:flex;align-items:center;gap:12px;margin-bottom:1rem;}
+.prog-track{flex:1;height:5px;background:rgba(255,255,255,0.1);border-radius:99px;overflow:hidden;}
+.prog-fill{height:100%;background:linear-gradient(to right,var(--gold),var(--gold2));border-radius:99px;transition:width 0.35s;}
+.prog-lbl{font-size:13px;color:var(--muted);min-width:52px;text-align:right;font-weight:500;}
+#puzzle-wrap{border-radius:var(--r);overflow:hidden;margin:0 auto;box-shadow:0 16px 56px rgba(0,0,0,0.55);border:1px solid var(--border);}
+#puzzle-canvas{display:block;touch-action:none;cursor:grab;width:100%;height:auto;}
+#puzzle-canvas:active{cursor:grabbing;}
+.action-row{display:flex;gap:10px;justify-content:center;margin-top:1rem;}
+
+/* SOLVED */
+.solved-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:2.5rem 2rem;text-align:center;}
+.solved-icon{font-size:52px;margin-bottom:1rem;}
+.solved-card h2{font-size:28px;font-weight:700;color:var(--gold);margin-bottom:.5rem;}
+.solved-card p{font-size:14px;color:var(--muted);margin-bottom:1rem;}
+.clue-reveal{background:var(--bg3);border:1px solid rgba(232,196,106,0.35);border-radius:11px;padding:1.5rem;margin:1rem 0;position:relative;overflow:hidden;}
+.clue-reveal::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(232,196,106,0.05),transparent);pointer-events:none;}
+.clue-text{font-size:18px;font-weight:700;color:var(--text);line-height:1.6;}
+
+/* CONFETTI KEYFRAME */
+@keyframes confettiFall {
+  0%{transform:translateY(-20px) rotate(0deg);opacity:1;}
+  100%{transform:translateY(80px) rotate(720deg);opacity:0;}
+}
+.confetti-piece{position:absolute;width:8px;height:8px;border-radius:2px;animation:confettiFall 1.2s ease-in forwards;}
+</style>
+</head>
+<body>
+
+<div id="sc-create" class="screen active">
+  <div class="hdr">
+    <h1>Jigsaw <span>Puzzle</span></h1>
+    <p>Upload an image · hide a clue · send the file</p>
+  </div>
+  <div class="gold-line"></div>
+  <div class="form-grid">
+
+    <div>
+      <label class="flabel">Image</label>
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-in').click()">
+        <div class="uz-icon">🖼</div>
+        <div class="uz-text"><b id="file-label">Click to upload</b> or drag an image here</div>
+        <img id="img-preview">
+      </div>
+      <input type="file" id="file-in" accept="image/*" style="display:none;">
+    </div>
+
+    <div>
+      <label class="flabel">Or paste image URL</label>
+      <input class="finput" type="text" id="img-url" placeholder="https://…">
+    </div>
+
+    <div>
+      <label class="flabel">Puzzle title</label>
+      <input class="finput" type="text" id="puzzle-title" value="Can you solve this?">
+    </div>
+
+    <div>
+      <label class="flabel">Hidden clue — revealed on completion</label>
+      <textarea class="finput" id="clue-text">You did it! Here's your secret clue 🎉</textarea>
+    </div>
+
+    <div>
+      <label class="flabel">Difficulty</label>
+      <div class="sel-wrap">
+        <select class="finput" id="difficulty">
+          <option value="3">Easy — 3×3 · 9 pieces</option>
+          <option value="4" selected>Medium — 4×4 · 16 pieces</option>
+          <option value="5">Hard — 5×5 · 25 pieces</option>
+        </select>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="previewPuzzle()">▶ Preview puzzle</button>
+    <button class="btn btn-ghost" onclick="generateLink()">🔗 Get shareable link</button>
+  </div>
+
+  <div id="link-section" style="display:none;">
+    <div class="link-card">
+      <div class="lc-label">Share this link</div>
+      <div class="link-mono" id="link-mono"></div>
+      <p class="link-note">⚠ Uploaded images are embedded in the page and can't travel in a URL. To share via link, paste a public image URL above instead.<br><br>💡 Alternatively, send this HTML file directly — it works completely offline in any browser!</p>
+      <div class="btn-row"><button class="btn btn-primary" onclick="copyLink()">Copy link</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- SOLVE SCREEN -->
+<div id="sc-solve" class="screen">
+  <div class="solve-hdr">
+    <button class="back-btn" onclick="goCreate()">← Back</button>
+    <div class="solve-title" id="solve-title">Solve the puzzle</div>
+  </div>
+  <div class="prog-row">
+    <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+    <span class="prog-lbl" id="prog-lbl">0 / 0</span>
+  </div>
+  <div id="puzzle-wrap"><canvas id="puzzle-canvas"></canvas></div>
+  <div class="action-row">
+    <button class="btn btn-ghost" onclick="shufflePieces()">↺ Shuffle</button>
+    <button class="btn btn-ghost" onclick="useHint()">💡 Hint</button>
+  </div>
+</div>
+
+<!-- SOLVED SCREEN -->
+<div id="sc-solved" class="screen">
+  <div id="confetti-container" style="position:fixed;top:0;left:0;width:100%;height:0;pointer-events:none;overflow:visible;"></div>
+  <div class="solved-card">
+    <div class="solved-icon">🏆</div>
+    <h2>Puzzle complete!</h2>
+    <p>You solved it. Here is your clue:</p>
+    <div class="clue-reveal">
+      <div class="clue-text" id="final-clue"></div>
+    </div>
+    <div class="btn-row" style="justify-content:center;">
+      <button class="btn btn-primary" onclick="goCreate()">Create another</button>
+      <button class="btn btn-ghost" onclick="replayPuzzle()">↺ Play again</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const S={img:null,imgData:null,title:'',clue:'',cols:4,pieces:[],drag:null,dox:0,doy:0,CW:0,CH:0,PW:0,PH:0,TAB:0,animId:null,lastSrc:null,lastCols:4};
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function goCreate(){showScreen('sc-create');if(S.animId){cancelAnimationFrame(S.animId);S.animId=null;}}
+function replayPuzzle(){showScreen('sc-solve');shufflePieces();startRender();}
+
+// File upload
+document.getElementById('file-in').addEventListener('change',function(e){
+  const f=e.target.files[0];if(!f)return;
+  document.getElementById('file-label').textContent=f.name;
+  const r=new FileReader();
+  r.onload=ev=>{
+    S.imgData=ev.target.result;
+    const p=document.getElementById('img-preview');p.src=S.imgData;p.style.display='block';
+    document.getElementById('img-url').value='';
+  };
+  r.readAsDataURL(f);
+});
+
+const uz=document.getElementById('upload-zone');
+uz.addEventListener('dragover',e=>{e.preventDefault();uz.classList.add('drag-over');});
+uz.addEventListener('dragleave',()=>uz.classList.remove('drag-over'));
+uz.addEventListener('drop',e=>{
+  e.preventDefault();uz.classList.remove('drag-over');
+  const f=e.dataTransfer.files[0];if(!f||!f.type.startsWith('image/'))return;
+  document.getElementById('file-label').textContent=f.name;
+  const r=new FileReader();
+  r.onload=ev=>{
+    S.imgData=ev.target.result;
+    const p=document.getElementById('img-preview');p.src=S.imgData;p.style.display='block';
+  };
+  r.readAsDataURL(f);
+});
+
+function getImgSrc(){return S.imgData||document.getElementById('img-url').value.trim();}
+
+function previewPuzzle(){
+  const src=getImgSrc();
+  if(!src){alert('Please upload an image or paste a URL first.');return;}
+  const title=document.getElementById('puzzle-title').value||'Solve!';
+  const clue=document.getElementById('clue-text').value;
+  const cols=parseInt(document.getElementById('difficulty').value);
+  startSolver(src,title,clue,cols);
+}
+
+function generateLink(){
+  const url=document.getElementById('img-url').value.trim();
+  if(S.imgData){
+    document.getElementById('link-mono').textContent='Uploaded images are embedded — they cannot be shared via URL.';
+    document.getElementById('link-section').style.display='block';
+    return;
+  }
+  if(!url){alert('Enter a public image URL to generate a shareable link.');return;}
+  const p=new URLSearchParams({
+    img:url,
+    title:document.getElementById('puzzle-title').value||'Solve!',
+    clue:document.getElementById('clue-text').value,
+    cols:document.getElementById('difficulty').value,
+    mode:'solve'
+  });
+  document.getElementById('link-mono').textContent=window.location.href.split('?')[0]+'?'+p.toString();
+  document.getElementById('link-section').style.display='block';
+}
+
+function copyLink(){
+  const t=document.getElementById('link-mono').textContent;
+  navigator.clipboard.writeText(t).then(()=>{
+    const b=event.target;b.textContent='✓ Copied!';
+    setTimeout(()=>b.textContent='Copy link',1800);
+  }).catch(()=>alert('Could not copy — please select and copy manually.'));
+}
+
+function startSolver(src,title,clue,cols){
+  S.title=title;S.clue=clue;S.cols=cols;
+  S.lastSrc=src;S.lastCols=cols;
+  document.getElementById('solve-title').textContent=title;
+  document.getElementById('final-clue').textContent=clue;
+  showScreen('sc-solve');
+  const img=new Image();
+  img.crossOrigin='anonymous';
+  img.onload=()=>{S.img=img;buildPuzzle();startRender();};
+  img.onerror=()=>{
+    const fc=document.createElement('canvas');fc.width=480;fc.height=360;
+    const ctx=fc.getContext('2d');
+    ctx.fillStyle='#0f1e33';ctx.fillRect(0,0,480,360);
+    ctx.strokeStyle='rgba(232,196,106,0.1)';ctx.lineWidth=1;
+    for(let i=0;i<480;i+=40){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,360);ctx.stroke();}
+    for(let j=0;j<360;j+=40){ctx.beginPath();ctx.moveTo(0,j);ctx.lineTo(480,j);ctx.stroke();}
+    ctx.fillStyle='#e8c46a';ctx.font='bold 28px Trebuchet MS';ctx.textAlign='center';ctx.fillText(title,240,165);
+    ctx.fillStyle='rgba(240,238,232,0.45)';ctx.font='14px Trebuchet MS';ctx.fillText('Image could not load',240,205);
+    const fi=new Image();fi.onload=()=>{S.img=fi;buildPuzzle();startRender();};fi.src=fc.toDataURL();
+  };
+  img.src=src;
+}
+
+function buildPuzzle(){
+  const cols=S.cols,rows=cols;
+  const maxW=Math.min(520,window.innerWidth-48);
+  const CW=maxW,CH=Math.round(CW*(S.img.height/S.img.width));
+  S.CW=CW;S.CH=CH;
+  const wrap=document.getElementById('puzzle-wrap');
+  wrap.style.width=CW+'px';wrap.style.height=CH+'px';
+  const canvas=document.getElementById('puzzle-canvas');
+  canvas.width=CW;canvas.height=CH;
+  S.PW=Math.floor(CW/cols);S.PH=Math.floor(CH/rows);
+  S.TAB=Math.round(Math.min(S.PW,S.PH)*0.22);
+  S.pieces=[];
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+    S.pieces.push({
+      id:r*cols+c,row:r,col:c,
+      tx:c*S.PW,ty:r*S.PH,x:0,y:0,placed:false,
+      tabs:[
+        r===0?0:(Math.random()<.5?1:-1),
+        c===cols-1?0:(Math.random()<.5?1:-1),
+        r===rows-1?0:(Math.random()<.5?1:-1),
+        c===0?0:(Math.random()<.5?1:-1)
+      ]
+    });
+  }
+  // sync adjacent tabs
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+    const p=S.pieces[r*cols+c];
+    if(c<cols-1)S.pieces[r*cols+c+1].tabs[3]=-p.tabs[1];
+    if(r<rows-1)S.pieces[(r+1)*cols+c].tabs[0]=-p.tabs[2];
+  }
+  shufflePieces();
+}
+
+function shufflePieces(){
+  const{pieces,CW,CH,PW,PH,TAB}=S;
+  pieces.forEach(p=>{
+    p.placed=false;
+    p.x=TAB+Math.random()*(CW-PW-TAB*2);
+    p.y=TAB+Math.random()*(CH-PH-TAB*2);
+  });
+  updateProgress();
+}
+
+function updateProgress(){
+  const tot=S.pieces.length,placed=S.pieces.filter(p=>p.placed).length;
+  const pct=tot?Math.round(placed/tot*100):0;
+  document.getElementById('prog-fill').style.width=pct+'%';
+  document.getElementById('prog-lbl').textContent=placed+' / '+tot;
+  if(placed===tot&&tot>0)setTimeout(()=>{launchConfetti();showScreen('sc-solved');},700);
+}
+
+function launchConfetti(){
+  const container=document.getElementById('confetti-container');
+  const colors=['#e8c46a','#f5d98a','#5ecfa0','#7db8f7','#f07a7a','#c97ef5'];
+  for(let i=0;i<60;i++){
+    const el=document.createElement('div');
+    el.className='confetti-piece';
+    el.style.cssText=`
+      left:${Math.random()*100}%;
+      top:${Math.random()*-60}px;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      animation-delay:${Math.random()*0.8}s;
+      animation-duration:${0.9+Math.random()*0.6}s;
+      transform:rotate(${Math.random()*360}deg);
+    `;
+    container.appendChild(el);
+    el.addEventListener('animationend',()=>el.remove());
+  }
+}
+
+function piecePath(ctx,p){
+  const{PW,PH,TAB}=S,x=p.x,y=p.y,w=PW,h=PH,t=TAB;
+  const[top,right,bottom,left]=p.tabs;
+  ctx.beginPath();
+  ctx.moveTo(x,y);
+  if(top!==0){ctx.lineTo(x+w*.35,y);ctx.bezierCurveTo(x+w*.3,y+top*t*1.2,x+w*.4,y+top*t*1.5,x+w*.5,y+top*t*1.5);ctx.bezierCurveTo(x+w*.6,y+top*t*1.5,x+w*.7,y+top*t*1.2,x+w*.65,y);}
+  ctx.lineTo(x+w,y);
+  if(right!==0){ctx.lineTo(x+w,y+h*.35);ctx.bezierCurveTo(x+w+right*t*1.2,y+h*.3,x+w+right*t*1.5,y+h*.4,x+w+right*t*1.5,y+h*.5);ctx.bezierCurveTo(x+w+right*t*1.5,y+h*.6,x+w+right*t*1.2,y+h*.7,x+w,y+h*.65);}
+  ctx.lineTo(x+w,y+h);
+  if(bottom!==0){ctx.lineTo(x+w*.65,y+h);ctx.bezierCurveTo(x+w*.7,y+h+bottom*t*1.2,x+w*.6,y+h+bottom*t*1.5,x+w*.5,y+h+bottom*t*1.5);ctx.bezierCurveTo(x+w*.4,y+h+bottom*t*1.5,x+w*.3,y+h+bottom*t*1.2,x+w*.35,y+h);}
+  ctx.lineTo(x,y+h);
+  if(left!==0){ctx.lineTo(x,y+h*.65);ctx.bezierCurveTo(x+left*t*1.2,y+h*.7,x+left*t*1.5,y+h*.6,x+left*t*1.5,y+h*.5);ctx.bezierCurveTo(x+left*t*1.5,y+h*.4,x+left*t*1.2,y+h*.3,x,y+h*.35);}
+  ctx.closePath();
+}
+
+function drawGhosts(ctx){
+  const{cols,PW,PH}=S;
+  for(let r=0;r<cols;r++)for(let c=0;c<cols;c++){
+    ctx.strokeStyle='rgba(232,196,106,0.08)';ctx.lineWidth=1;
+    ctx.strokeRect(c*PW+.5,r*PH+.5,PW-1,PH-1);
+  }
+}
+
+function drawPiece(ctx,p){
+  const{img,PW,PH,cols}=S;
+  const rows=cols;
+  const sx=p.col*(img.width/cols),sy=p.row*(img.height/rows);
+  const sw=img.width/cols,sh=img.height/rows;
+  ctx.save();piecePath(ctx,p);ctx.clip();
+  ctx.drawImage(img,sx,sy,sw,sh,p.x,p.y,PW,PH);
+  ctx.restore();
+  // drop shadow
+  ctx.save();
+  piecePath(ctx,p);
+  ctx.shadowColor='rgba(0,0,0,0.55)';ctx.shadowBlur=10;ctx.shadowOffsetX=2;ctx.shadowOffsetY=3;
+  ctx.strokeStyle='rgba(0,0,0,0)';ctx.lineWidth=0.5;ctx.stroke();
+  ctx.restore();
+  // edge
+  ctx.save();piecePath(ctx,p);
+  ctx.strokeStyle=p.placed?'rgba(94,207,160,0.95)':'rgba(255,255,255,0.2)';
+  ctx.lineWidth=p.placed?2.5:1.2;ctx.stroke();
+  ctx.restore();
+}
+
+function startRender(){
+  if(S.animId){cancelAnimationFrame(S.animId);S.animId=null;}
+  const canvas=document.getElementById('puzzle-canvas'),ctx=canvas.getContext('2d');
+  function loop(){
+    ctx.clearRect(0,0,S.CW,S.CH);
+    ctx.fillStyle='#0f1e33';ctx.fillRect(0,0,S.CW,S.CH);
+    drawGhosts(ctx);
+    S.pieces.forEach(p=>{if(p!==S.drag)drawPiece(ctx,p);});
+    if(S.drag)drawPiece(ctx,S.drag);
+    S.animId=requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+function getPos(e){
+  const c=document.getElementById('puzzle-canvas'),rect=c.getBoundingClientRect();
+  const scX=c.width/rect.width,scY=c.height/rect.height;
+  const src=e.touches?e.touches[0]:e;
+  return{x:(src.clientX-rect.left)*scX,y:(src.clientY-rect.top)*scY};
+}
+
+const cv=document.getElementById('puzzle-canvas');
+cv.addEventListener('mousedown',onDown);cv.addEventListener('mousemove',onMove);cv.addEventListener('mouseup',onUp);
+cv.addEventListener('touchstart',onDown,{passive:false});cv.addEventListener('touchmove',onMove,{passive:false});cv.addEventListener('touchend',onUp);
+
+function onDown(e){
+  e.preventDefault();const{x,y}=getPos(e);
+  for(let i=S.pieces.length-1;i>=0;i--){
+    const p=S.pieces[i];
+    if(x>=p.x-S.TAB&&x<=p.x+S.PW+S.TAB&&y>=p.y-S.TAB&&y<=p.y+S.PH+S.TAB){
+      S.drag=p;S.dox=x-p.x;S.doy=y-p.y;S.pieces.splice(i,1);S.pieces.push(p);break;
+    }
+  }
+}
+function onMove(e){e.preventDefault();if(!S.drag)return;const{x,y}=getPos(e);S.drag.x=x-S.dox;S.drag.y=y-S.doy;}
+function onUp(){
+  const p=S.drag;if(!p)return;
+  const snap=Math.min(S.PW,S.PH)*0.38;
+  if(Math.abs(p.x-p.tx)<snap&&Math.abs(p.y-p.ty)<snap){p.x=p.tx;p.y=p.ty;p.placed=true;}
+  S.drag=null;updateProgress();
+}
+
+function useHint(){
+  const u=S.pieces.filter(p=>!p.placed);if(!u.length)return;
+  const p=u[Math.floor(Math.random()*u.length)];p.x=p.tx;p.y=p.ty;p.placed=true;updateProgress();
+}
+
+// URL param auto-start (for shared links with image URLs)
+(function(){
+  const params=new URLSearchParams(window.location.search);
+  if(params.get('mode')==='solve'){
+    const img=params.get('img')||'';
+    const title=params.get('title')||'Solve!';
+    const clue=params.get('clue')||'';
+    const cols=parseInt(params.get('cols')||'4');
+    if(img){
+      document.getElementById('img-url').value=img;
+      document.getElementById('puzzle-title').value=title;
+      document.getElementById('clue-text').value=clue;
+      document.getElementById('difficulty').value=cols;
+      startSolver(img,title,clue,cols);
+    }
+  }
+})();
+</script>
+</body>
+</html>
